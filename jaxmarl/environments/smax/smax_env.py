@@ -19,6 +19,8 @@ import math
 
 @dataclass
 class State:
+    obstacle_coords: chex.Array
+    obstacle_radii: chex.Array
     unit_positions: chex.Array
     unit_alive: chex.Array
     unit_teams: chex.Array
@@ -154,6 +156,7 @@ class SMAX(MultiAgentEnv):
         self.world_steps_per_env_step = world_steps_per_env_step
         self.map_width = map_width
         self.map_height = map_height
+        self.n_obstacles = jnp.log2(map_width * map_height).astype(jnp.int32)
         self.scenario = scenario if scenario is None else scenario.unit_types
         self.use_self_play_reward = use_self_play_reward
         self.time_per_step = time_per_step
@@ -258,9 +261,32 @@ class SMAX(MultiAgentEnv):
         else:
             raise ValueError("Provided observation type is not valid")
 
+    #########################################################################
+    #########################################################################
+    #########################################################################
+
+    @partial(jax.jit, static_argnums=(0,))
+    def generate_obstacle_map(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
+        radii = jax.random.uniform(
+            key, shape=(self.n_obstacles,), minval=1, maxval=jnp.log(self.map_width)
+        )
+        coords = jax.random.uniform(
+            key, shape=(self.n_obstacles, 2), minval=0, maxval=self.map_width
+        )
+        return coords, radii  # TODO: consider making obstacles square
+
+    #########################################################################
+    #########################################################################
+    #########################################################################
+
     @partial(jax.jit, static_argnums=(0,))
     def reset(self, key: chex.PRNGKey) -> Tuple[Dict[str, chex.Array], State]:
         """Environment-specific reset."""
+
+        #########################################################################
+        obstacle_coords, obstacle_radii = self.generate_obstacle_map(key)
+        #########################################################################
+
         key, team_0_key, team_1_key = jax.random.split(key, num=3)
         team_0_start = jnp.stack([jnp.array([8.0, 16.0])] * self.num_allies)
         team_0_start_noise = jax.random.uniform(
@@ -294,6 +320,8 @@ class SMAX(MultiAgentEnv):
         )
         unit_health = self.unit_type_health[unit_types]
         state = State(
+            obstacle_coords=obstacle_coords,  # TODO: obstacles
+            obstacle_radii=obstacle_radii,  # TODO: obstacles
             unit_positions=unit_positions,
             unit_alive=jnp.ones((self.num_agents,), dtype=jnp.bool_),
             unit_teams=unit_teams,
@@ -305,6 +333,7 @@ class SMAX(MultiAgentEnv):
             terminal=False,
             unit_weapon_cooldowns=unit_weapon_cooldowns,
         )
+        # state = self.move_away_from_obstacles(state)  # TODO: account for obstacles
         state = self._push_units_away(state)
         obs = self.get_obs(state)
         world_state = self.get_world_state(state)
@@ -325,7 +354,7 @@ class SMAX(MultiAgentEnv):
         return self.step_env_no_decode(key, state, actions, get_state_sequence)
 
     @partial(jax.jit, static_argnums=(0, 4))
-    def step_env_no_decode(
+    def step_env_no_decode(  # TODO: obstacles
         self,
         key: chex.PRNGKey,
         state: State,
@@ -344,6 +373,7 @@ class SMAX(MultiAgentEnv):
             )
             state = self._kill_agents_touching_walls(state)
             state = self._update_dead_agents(state)
+            # state = self.move_away_from_obstacles(state)
             state = self._push_units_away(state)
             state = state.replace(
                 prev_movement_actions=actions[0],
@@ -478,7 +508,19 @@ class SMAX(MultiAgentEnv):
         )
         return state.replace(unit_health=unit_health)
 
-    def _push_units_away(self, state: State, firmness: float = 1.0):
+    """ #########################################################################
+    #########################################################################
+    #########################################################################
+
+    def move_away_from_obstacles(self, state: State):
+        print("Pushing units away")
+        return state
+
+    #########################################################################
+    #########################################################################
+    ######################################################################### """
+
+    def _push_units_away(self, state: State, firmness: float = 1.0):  # TODO: obstacles
         delta_matrix = state.unit_positions[:, None] - state.unit_positions[None, :]
         dist_matrix = (
             jnp.linalg.norm(delta_matrix, axis=-1)
@@ -644,6 +686,23 @@ class SMAX(MultiAgentEnv):
                 jnp.minimum(new_pos, jnp.array([self.map_width, self.map_height])),
                 jnp.zeros((2,)),
             )
+            # avoid going into obstacles
+
+            #######################################################################
+
+            # if position is not in obstacle, return new_pos
+            # else modify new position to be the same as the old position
+
+            new_pos = jax.lax.cond(
+                jnp.any(
+                    jnp.linalg.norm(new_pos - state.obstacle_coords, axis=-1)
+                    < state.obstacle_radii
+                ),
+                lambda: pos,
+                lambda: new_pos,
+            )
+
+            #######################################################################
             return new_pos
 
         def update_agent_health(idx, action, key):
@@ -957,7 +1016,10 @@ class SMAX(MultiAgentEnv):
         for key, state, actions in state_seq:
             states = self.step_env(key, state, actions, get_state_sequence=True)
             states = list(map(State, *dataclasses.astuple(states)))
-            viz_actions = {agent: states[0].prev_attack_actions[i] for i, agent in enumerate(self.agents)}
+            viz_actions = {
+                agent: states[0].prev_attack_actions[i]
+                for i, agent in enumerate(self.agents)
+            }
             expanded_state_seq.extend(
                 zip([key] * len(states), states, [viz_actions] * len(states))
             )
@@ -1050,6 +1112,16 @@ class SMAX(MultiAgentEnv):
                     fontsize="xx-small",
                     color="white",
                 )
+        ############################################
+        # render obstacles
+        for i in range(len(state.obstacle_coords)):
+            c = Circle(
+                state.obstacle_coords[i],
+                state.obstacle_radii[i],
+                color="black",
+            )
+            ax.add_patch(c)
+        ############################################
 
         # render bullets
         for agent in self.agents:
@@ -1084,3 +1156,12 @@ class SMAX(MultiAgentEnv):
     ):
         ax = im.axes
         return self.init_render(ax, state, step, env_step)
+
+
+# test the environment
+if __name__ == "__main__":
+    from jax import random, numpy as jnp
+
+    rng = random.PRNGKey(0)
+    env = SMAX()
+    obs, state = env.reset(rng)
