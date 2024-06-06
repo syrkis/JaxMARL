@@ -63,7 +63,7 @@ MAP_NAME_TO_SCENARIO = {
         False,
         False,
         jnp.array([[25, 15], [10, 10]]),  # coordinates of the obstacle lines
-        jnp.array([1, 0]),  # orientation of the obstacle lines
+        jnp.array([[1, 0], [0, 1]]),  # orientation of the obstacle lines
     ),
     ##################################################################
     ##################################################################
@@ -902,7 +902,6 @@ class SMAX(MultiAgentEnv):
             bystander_health_diff = (
                 bystander_valid * -self.unit_type_attacks[state.unit_types[idx]]
             )
-            print(health_diff.shape, bystander_health_diff.shape)
             health_diff = health_diff  # (health_diff + bystander_health_diff).squeeze()
 
             #########################################################
@@ -1285,15 +1284,16 @@ class SMAX(MultiAgentEnv):
         #####################################################################
         #####################################################################
         # render obstacle lines
-        for i in range(self.obstacle_coordinates.shape[0]):
+        for coord, orient in zip(self.obstacle_coordinates, self.obstacle_orientation):
             # orientation = 0: horizontal, 1: vertical. Length is always 1
-            orientation = self.obstacle_orientation[i]
-            x = self.obstacle_coordinates[i][0]
-            y = self.obstacle_coordinates[i][1]
-            if orientation == 0:
-                ax.add_patch(Rectangle((x, y), 1, 0.1, color="black"))
-            else:
-                ax.add_patch(Rectangle((x, y), 0.1, 1, color="black"))
+            ax.add_patch(
+                Rectangle(
+                    coord,
+                    orient[0],
+                    orient[1],
+                    color="black",
+                )
+            )
         #####################################################################
         #####################################################################
 
