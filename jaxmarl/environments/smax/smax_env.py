@@ -73,8 +73,12 @@ MAP_NAME_TO_SCENARIO = {
         3,
         False,
         False,
-        jnp.array([[23, 23], [23, 23], [23, 23]]),  # coordinates of the obstacle lines
-        jnp.array([[0, 1], [0, 1], [0, 1]]),  # orientation of the obstacle lines
+        jnp.array(
+            [[15, 15], [15, 16], [15, 14], [15, 17]]
+        ),  # coordinates of the obstacle lines
+        jnp.array(
+            [[0, 1], [0, 1], [0, 1], [0, 1]]
+        ),  # orientation of the obstacle lines
     ),
     "2s3z": Scenario(
         jnp.array([2, 2, 3, 3, 3] * 2, dtype=jnp.uint8),
