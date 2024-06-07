@@ -814,19 +814,30 @@ class SMAX(MultiAgentEnv):
 
             # if trajectory from  pos to new_pos crosses an obstacle line (have length one)
             # new_pos = pos, else new_pos = new_pos
-            # ————————————————
-            # |              |
-            # |       a      |
-            # |       —      |
-            # |       b      |
-            # |              |
-            # ————————————————
+            # —————————————————
+            # |               |
+            # |       a1      |
+            # |      b1—b2    |
+            # |       a2      |
+            # |               |
+            # —————————————————
 
-            """ new_pos = jax.lax.cond(
-                jnp.any(),
+            def lines_intersect(a1, a2, b1, b2):  # TODO: double check this is correct
+                # if line from a1 to a2 intersects with b1 to b2
+                denominator = jnp.cross(a2 - a1, b2 - b1)
+                t = jnp.cross(b1 - a1, b2 - b1) / denominator
+                u = jnp.cross(a2 - a1, b1 - a1) / denominator
+                return (0 <= t) & (t <= 1) & (0 <= u) & (u <= 1)
+
+            pos = pos  # a1  (x, y)
+            new_pos = new_pos  # a2  (x, y)
+            obstacle_start = self.obstacle_coordinates  # b1 (x, y)
+            obstacle_end = obstacle_start + self.obstacle_orientation  # b2  (x, y)
+            new_pos = jax.lax.cond(
+                jnp.any(lines_intersect(pos, new_pos, obstacle_start, obstacle_end)),
                 lambda: pos,
                 lambda: new_pos,
-            ) """
+            )
 
             #######################################################################
             #######################################################################
