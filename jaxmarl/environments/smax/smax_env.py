@@ -283,10 +283,14 @@ class SMAX(MultiAgentEnv):
         ##############################################################################
         ##############################################################################
         self.obstacle_coordinates = (
-            scenario if scenario is None else scenario.obstacle_coordinates
+            jnp.array([[-1, -1]])
+            if scenario is None or scenario.obstacle_coordinates.size == 0
+            else scenario.obstacle_coordinates
         )
         self.obstacle_orientation = (
-            scenario if scenario is None else scenario.obstacle_orientation
+            jnp.array([[-1, -1]])
+            if scenario is None or scenario.obstacle_orientation.size == 0
+            else scenario.obstacle_orientation
         )
         ##############################################################################
         ##############################################################################
@@ -837,6 +841,7 @@ class SMAX(MultiAgentEnv):
             new_pos = new_pos  # a2  (x, y)
             obstacle_start = self.obstacle_coordinates  # b1 (x, y)
             obstacle_end = obstacle_start + self.obstacle_orientation  # b2  (x, y)
+            # if obstacle_start and obstacle_end are empty make them into jnp.array([[-1,-1]])
             new_pos = jax.lax.cond(
                 jnp.any(lines_intersect(pos, new_pos, obstacle_start, obstacle_end)),
                 lambda: pos,
