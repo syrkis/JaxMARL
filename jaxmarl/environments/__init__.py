@@ -12,7 +12,7 @@ from .mpe import (
     SimpleFacmacMPE,
     SimpleFacmacMPE3a,
     SimpleFacmacMPE6a,
-    SimpleFacmacMPE9a
+    SimpleFacmacMPE9a,
 )
 from .smax import SMAX, HeuristicEnemySMAX, LearnedPolicyEnemySMAX
 from .switch_riddle import SwitchRiddle
@@ -21,4 +21,4 @@ from .mabrax import Ant, Humanoid, Hopper, Walker2d, HalfCheetah
 from .hanabi import Hanabi
 from .storm import InTheGrid, InTheGrid_2p
 from .coin_game import CoinGame
-
+from .parabellum import Parabellum, Scenario  # Noah Syrkis
