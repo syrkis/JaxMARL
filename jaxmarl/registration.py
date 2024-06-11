@@ -26,8 +26,8 @@ from .environments import (
     Hanabi,
     Overcooked,
     CoinGame,
+    Parabellum,  # Noah Syrkis
 )
-
 
 
 def make(env_id: str, **env_kwargs):
@@ -93,7 +93,7 @@ def make(env_id: str, **env_kwargs):
     # 5. InTheGrid
     elif env_id == "storm_2p":
         env = InTheGrid_2p(**env_kwargs)
-    
+
     # 6. Hanabi
     elif env_id == "hanabi":
         env = Hanabi(**env_kwargs)
@@ -106,7 +106,12 @@ def make(env_id: str, **env_kwargs):
     elif env_id == "coin_game":
         env = CoinGame(**env_kwargs)
 
+    # -1. Parabellum
+    elif env_id == "parabellum":  # Noah Syrkis
+        env = Parabellum(**env_kwargs)
+
     return env
+
 
 registered_envs = [
     "MPE_simple_v3",
@@ -136,4 +141,5 @@ registered_envs = [
     "hanabi",
     "overcooked",
     "coin_game",
+    "parabellum",  # Noah Syrkis
 ]

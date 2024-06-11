@@ -19,12 +19,6 @@ import math
 
 @dataclass
 class State:
-    ##################################################################
-    ##################################################################
-    # obstacle_coordinates: chex.Array
-    # obstacle_orientation: chex.Array
-    ##################################################################
-    ##################################################################
     unit_positions: chex.Array
     unit_alive: chex.Array
     unit_teams: chex.Array
@@ -44,60 +38,15 @@ class Scenario:
     num_enemies: int
     smacv2_position_generation: bool
     smacv2_unit_type_generation: bool
-    ##################################################################
-    ##################################################################
-    obstacle_coordinates: chex.Array
-    obstacle_orientation: chex.Array
-    ##################################################################
-    ##################################################################
 
 
 MAP_NAME_TO_SCENARIO = {
     # name: (unit_types, n_allies, n_enemies, SMACv2 position generation, SMACv2 unit generation)
-    ##################################################################
-    ##################################################################
-    "c2sim": Scenario(
-        jnp.zeros((6,), dtype=jnp.uint8),
-        3,
-        3,
-        False,
-        False,
-        jnp.array([[25, 15], [10, 10]]),  # coordinates of the obstacle lines
-        jnp.array([[1, 0], [0, 1]]),  # orientation of the obstacle lines
-    ),
-    ##################################################################
-    ##################################################################
-    "3m": Scenario(
-        jnp.zeros((6,), dtype=jnp.uint8),
-        3,
-        3,
-        False,
-        False,
-        jnp.array(
-            [[15, 15], [15, 16], [15, 14], [15, 17]]
-        ),  # coordinates of the obstacle lines
-        jnp.array(
-            [[0, 1], [0, 1], [0, 1], [0, 1]]
-        ),  # orientation of the obstacle lines
-    ),
+    "3m": Scenario(jnp.zeros((6,), dtype=jnp.uint8), 3, 3, False, False),
     "2s3z": Scenario(
-        jnp.array([2, 2, 3, 3, 3] * 2, dtype=jnp.uint8),
-        5,
-        5,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
+        jnp.array([2, 2, 3, 3, 3] * 2, dtype=jnp.uint8), 5, 5, False, False
     ),
-    "25m": Scenario(
-        jnp.zeros((50,), dtype=jnp.uint8),
-        25,
-        25,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
+    "25m": Scenario(jnp.zeros((50,), dtype=jnp.uint8), 25, 25, False, False),
     "3s5z": Scenario(
         jnp.array(
             [
@@ -117,45 +66,11 @@ MAP_NAME_TO_SCENARIO = {
         8,
         False,
         False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
     ),
-    "8m": Scenario(
-        jnp.zeros((16,), dtype=jnp.uint8),
-        8,
-        8,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
-    "5m_vs_6m": Scenario(
-        jnp.zeros((11,), dtype=jnp.uint8),
-        5,
-        6,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
-    "10m_vs_11m": Scenario(
-        jnp.zeros((21,), dtype=jnp.uint8),
-        10,
-        11,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
-    "27m_vs_30m": Scenario(
-        jnp.zeros((57,), dtype=jnp.uint8),
-        27,
-        30,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
+    "8m": Scenario(jnp.zeros((16,), dtype=jnp.uint8), 8, 8, False, False),
+    "5m_vs_6m": Scenario(jnp.zeros((11,), dtype=jnp.uint8), 5, 6, False, False),
+    "10m_vs_11m": Scenario(jnp.zeros((21,), dtype=jnp.uint8), 10, 11, False, False),
+    "27m_vs_30m": Scenario(jnp.zeros((57,), dtype=jnp.uint8), 27, 30, False, False),
     "3s5z_vs_3s6z": Scenario(
         jnp.concatenate(
             [
@@ -167,17 +82,9 @@ MAP_NAME_TO_SCENARIO = {
         9,
         False,
         False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
     ),
     "3s_vs_5z": Scenario(
-        jnp.array([2, 2, 2, 3, 3, 3, 3, 3], dtype=jnp.uint8),
-        3,
-        5,
-        False,
-        False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
+        jnp.array([2, 2, 2, 3, 3, 3, 3, 3], dtype=jnp.uint8), 3, 5, False, False
     ),
     "6h_vs_8z": Scenario(
         jnp.array([5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3], dtype=jnp.uint8),
@@ -185,36 +92,10 @@ MAP_NAME_TO_SCENARIO = {
         8,
         False,
         False,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
     ),
-    "smacv2_5_units": Scenario(
-        jnp.zeros((10,), dtype=jnp.uint8),
-        5,
-        5,
-        True,
-        True,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
-    "smacv2_10_units": Scenario(
-        jnp.zeros((20,), dtype=jnp.uint8),
-        10,
-        10,
-        True,
-        True,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
-    "smacv2_20_units": Scenario(
-        jnp.zeros((40,), dtype=jnp.uint8),
-        20,
-        20,
-        True,
-        True,
-        jnp.array([[]]),  # coordinates of the obstacle lines
-        jnp.array([[]]),  # coordinates of the obstacle lines
-    ),
+    "smacv2_5_units": Scenario(jnp.zeros((10,), dtype=jnp.uint8), 5, 5, True, True),
+    "smacv2_10_units": Scenario(jnp.zeros((20,), dtype=jnp.uint8), 10, 10, True, True),
+    "smacv2_20_units": Scenario(jnp.zeros((40,), dtype=jnp.uint8), 20, 20, True, True),
 }
 
 
@@ -236,7 +117,7 @@ class SMAX(MultiAgentEnv):
         map_height=32,
         world_steps_per_env_step=8,
         time_per_step=1.0 / 16,
-        scenario=map_name_to_scenario("c2sim"),
+        scenario=None,
         unit_type_names=[
             "marine",
             "marauder",
@@ -245,17 +126,10 @@ class SMAX(MultiAgentEnv):
             "zergling",
             "hydralisk",
         ],
-        ##################################################################################
-        ##################################################################################
-        # obstacle_coordinates=[(31, 31)],  # position of the obstacle line
-        # obstacle_orientation=[(0, 1)],  # orientation of the obstacle line
-        ##################################################################################
-        ##################################################################################
         unit_type_shorthands=["m", "M", "s", "Z", "z", "h"],
         unit_type_velocities=jnp.array([3.15, 2.25, 4.13, 3.15, 4.13, 3.15]),
         unit_type_attacks=jnp.array([9.0, 10.0, 13.0, 8.0, 5.0, 12.0]),
         unit_type_attack_ranges=jnp.array([5.0, 6.0, 6.0, 2.0, 2.0, 5.0]),
-        unit_type_attack_blasts=jnp.array([0, 0, 0, 0, 0, 0]),
         unit_type_sight_ranges=jnp.array([9.0, 10.0, 10.0, 9.0, 8.0, 9.0]),
         unit_type_radiuses=jnp.array([0.375, 0.5625, 0.625, 0.5, 0.375, 0.625]),
         unit_type_health=jnp.array([45.0, 125.0, 160, 150, 35, 80]),
@@ -280,21 +154,6 @@ class SMAX(MultiAgentEnv):
         self.world_steps_per_env_step = world_steps_per_env_step
         self.map_width = map_width
         self.map_height = map_height
-        ##############################################################################
-        ##############################################################################
-        self.obstacle_coordinates = (
-            jnp.array([[-1, -1]])
-            if scenario is None or scenario.obstacle_coordinates.size == 0
-            else scenario.obstacle_coordinates
-        )
-        self.obstacle_orientation = (
-            jnp.array([[-1, -1]])
-            if scenario is None or scenario.obstacle_orientation.size == 0
-            else scenario.obstacle_orientation
-        )
-        ##############################################################################
-        ##############################################################################
-        # self.n_obstacles = jnp.log2(map_width * map_height).astype(jnp.int32)
         self.scenario = scenario if scenario is None else scenario.unit_types
         self.use_self_play_reward = use_self_play_reward
         self.time_per_step = time_per_step
@@ -305,7 +164,6 @@ class SMAX(MultiAgentEnv):
         self.unit_type_sight_ranges = unit_type_sight_ranges
         self.unit_type_radiuses = unit_type_radiuses
         self.unit_type_health = unit_type_health
-        self.unit_type_attack_blasts = unit_type_attack_blasts
         self.unit_type_bits = len(self.unit_type_names)
         self.max_steps = max_steps
         self.won_battle_bonus = won_battle_bonus
@@ -400,32 +258,9 @@ class SMAX(MultiAgentEnv):
         else:
             raise ValueError("Provided observation type is not valid")
 
-    #########################################################################
-    #########################################################################
-
-    """ @partial(jax.jit, static_argnums=(0,))
-    def generate_obstacle_map(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
-        radii = jax.random.uniform(
-            key, shape=(self.n_obstacles,), minval=1, maxval=jnp.log(self.map_width)
-        )
-        coords = jax.random.uniform(
-            key, shape=(self.n_obstacles, 2), minval=0, maxval=self.map_width
-        )
-        return coords, radii  # TODO: consider making obstacles square """
-
-    #########################################################################
-    #########################################################################
-
     @partial(jax.jit, static_argnums=(0,))
     def reset(self, key: chex.PRNGKey) -> Tuple[Dict[str, chex.Array], State]:
         """Environment-specific reset."""
-
-        #########################################################################
-        #########################################################################
-        # obstacle_coords, obstacle_radii = self.generate_obstacle_map(key)
-        #########################################################################
-        #########################################################################
-
         key, team_0_key, team_1_key = jax.random.split(key, num=3)
         team_0_start = jnp.stack([jnp.array([8.0, 16.0])] * self.num_allies)
         team_0_start_noise = jax.random.uniform(
@@ -459,12 +294,6 @@ class SMAX(MultiAgentEnv):
         )
         unit_health = self.unit_type_health[unit_types]
         state = State(
-            ##########################################################################
-            ##########################################################################
-            # obstacle_coordinates=self.obstacle_coordinates,
-            # obstacle_orientation=self.obstacle_orientation,
-            ##########################################################################
-            ##########################################################################
             unit_positions=unit_positions,
             unit_alive=jnp.ones((self.num_agents,), dtype=jnp.bool_),
             unit_teams=unit_teams,
@@ -815,67 +644,9 @@ class SMAX(MultiAgentEnv):
                 jnp.minimum(new_pos, jnp.array([self.map_width, self.map_height])),
                 jnp.zeros((2,)),
             )
-            # avoid going into obstacles
-
-            #######################################################################
-            #######################################################################
-
-            # if trajectory from  pos to new_pos crosses an obstacle line (have length one)
-            # new_pos = pos, else new_pos = new_pos
-            # —————————————————
-            # |               |
-            # |       a1      |
-            # |      b1—b2    |
-            # |       a2      |
-            # |               |
-            # —————————————————
-
-            def lines_intersect(a1, a2, b1, b2):  # TODO: double check this is correct
-                # if line from a1 to a2 intersects with b1 to b2
-                denominator = jnp.cross(a2 - a1, b2 - b1)
-                t = jnp.cross(b1 - a1, b2 - b1) / denominator
-                u = jnp.cross(a2 - a1, b1 - a1) / denominator
-                return (0 <= t) & (t <= 1) & (0 <= u) & (u <= 1)
-
-            pos = pos  # a1  (x, y)
-            new_pos = new_pos  # a2  (x, y)
-            obstacle_start = self.obstacle_coordinates  # b1 (x, y)
-            obstacle_end = obstacle_start + self.obstacle_orientation  # b2  (x, y)
-            # if obstacle_start and obstacle_end are empty make them into jnp.array([[-1,-1]])
-            new_pos = jax.lax.cond(
-                jnp.any(lines_intersect(pos, new_pos, obstacle_start, obstacle_end)),
-                lambda: pos,
-                lambda: new_pos,
-            )
-
-            #######################################################################
-            #######################################################################
-
             return new_pos
 
-        #######################################################################
-        #######################################################################
-        #######################################################################
-
-        def bystander_fn(attacked_idx):
-            idxs = (
-                jnp.zeros((self.num_agents,))
-                .at[: self.num_allies]
-                .set(attacked_idx > self.num_allies)
-            )
-            idxs *= (
-                jnp.linalg.norm(
-                    state.unit_positions - state.unit_positions[attacked_idx], axis=-1
-                )
-                < self.unit_type_attack_blasts[state.unit_types[attacked_idx]]
-            )
-            return idxs
-
-            #######################################################################
-            #######################################################################
-            #######################################################################
-
-        def update_agent_health(idx, action, key):  # TODO: add attack blasts
+        def update_agent_health(idx, action, key):
             # for team 1, their attack actions are labelled in
             # reverse order because that is the order they are
             # observed in
@@ -888,11 +659,6 @@ class SMAX(MultiAgentEnv):
             attacked_idx = jax.lax.select(
                 action < self.num_movement_actions, idx, attacked_idx
             )
-
-            #########################################################
-            bystanders = bystander_fn(attacked_idx)  # TODO: use
-            #########################################################
-
             attack_valid = (
                 (
                     jnp.linalg.norm(
@@ -912,20 +678,6 @@ class SMAX(MultiAgentEnv):
             )
             # design choice based on the pysc2 randomness details.
             # See https://github.com/deepmind/pysc2/blob/master/docs/environment.md#determinism-and-randomness
-
-            #########################################################
-            #########################################################
-
-            bystander_valid = jnp.where(
-                attack_valid, bystanders, jnp.zeros((self.num_agents,))
-            )
-            bystander_health_diff = (
-                bystander_valid * -self.unit_type_attacks[state.unit_types[idx]]
-            )
-            health_diff = health_diff  # (health_diff + bystander_health_diff).squeeze()
-
-            #########################################################
-            #########################################################
 
             cooldown_deviation = jax.random.uniform(
                 key, minval=-self.time_per_step, maxval=2 * self.time_per_step
@@ -1301,21 +1053,6 @@ class SMAX(MultiAgentEnv):
                     fontsize="xx-small",
                     color="white",
                 )
-        #####################################################################
-        #####################################################################
-        # render obstacle lines
-        for coord, orient in zip(self.obstacle_coordinates, self.obstacle_orientation):
-            # orientation = 0: horizontal, 1: vertical. Length is always 1
-            ax.add_patch(
-                Rectangle(
-                    coord,
-                    orient[0],
-                    orient[1],
-                    color="black",
-                )
-            )
-        #####################################################################
-        #####################################################################
 
         # render bullets
         for agent in self.agents:
@@ -1350,20 +1087,3 @@ class SMAX(MultiAgentEnv):
     ):
         ax = im.axes
         return self.init_render(ax, state, step, env_step)
-
-
-# test the environment
-if __name__ == "__main__":
-    from jax import random, numpy as jnp
-
-    rng, key = random.split(random.PRNGKey(0))
-    env = SMAX()
-    obs, state = env.reset(rng)
-    for step in range(10):
-        rng, key = random.split(rng)
-        act_keys = random.split(key, len(env.agents))
-        actions = {
-            agent: env.action_space(agent).sample(act_keys[i])
-            for i, agent in enumerate(env.agents)
-        }
-        obs, state, rewards, dones, infos = env.step_env(key, state, actions)
