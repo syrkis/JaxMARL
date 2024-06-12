@@ -46,12 +46,11 @@ class Parabellum(SMAX):
     ):
         super().__init__(scenario=scenario, **kwargs)
         self.unit_type_attack_blasts = unit_type_attack_blasts
-        self.obstacle_coords = scenario.obstacle_coords
-        self.obstacle_deltas = scenario.obstacle_deltas
+        self.obstacle_coords = scenario.obstacle_coords.astype(jnp.float32)
+        self.obstacle_deltas = scenario.obstacle_deltas.astype(jnp.float32)
         # overwrite supers _world_step method
 
-    @partial(jax.jit, static_argnums=(0,))
-    # replace the _world_step method
+    @partial(jax.jit, static_argnums=(0,))  # replace the _world_step method
     def _world_step(  # modified version of JaxMARL's SMAX _world_step
         self,
         key: chex.PRNGKey,
@@ -76,8 +75,8 @@ class Parabellum(SMAX):
                 jnp.minimum(new_pos, jnp.array([self.map_width, self.map_height])),
                 jnp.zeros((2,)),
             )
-            # avoid going into obstacles
 
+            # avoid going into obstacles
             #######################################################################
             #######################################################################
 
@@ -92,20 +91,25 @@ class Parabellum(SMAX):
             # —————————————————
 
             @partial(jax.vmap, in_axes=(None, None, 0, 0))
-            def inter_fn(a1, a2, b1, b2):  # TODO: double check this is correct
-                # if line from a1 to a2 intersects with b1 to b2
-                denom = jnp.linalg.det(jnp.stack([a2 - a1, b2 - b1]))
-                t = jnp.linalg.det(jnp.stack([b1 - a1, b2 - b1])) / denom
-                u = jnp.linalg.det(jnp.stack([a2 - a1, b1 - a1])) / denom
-                return jnp.where(denom == 0, 0, (0 < t) & (t < 1) & (0 < u) & (u < 1))
+            def inter_fn(pos, new_pos, obs, obs_end):
+                return pos[0] < self.map_width / 2
+                v1, v2 = new_pos - pos, obs_end - obs
+                a1, a2 = obs - pos, obs_end - pos
 
-            pos = pos  # a1  (x, y)
-            new_pos = new_pos  # a2  (x, y)
-            obstacle_start = self.obstacle_coords  # b1 (x, y)
-            obstacle_end = obstacle_start + self.obstacle_deltas  # b2  (x, y)
-            # if obstacle_start and obstacle_end are empty make them into jnp.array([[-1,-1]])
-            inters = jnp.any(inter_fn(pos, new_pos, obstacle_start, obstacle_end))
-            new_pos = jax.lax.cond(inters, lambda: pos, lambda: new_pos)
+                # Check if the two lines are colinear using jnp.cross
+                colinear = jnp.abs(jnp.cross(v1, v2)) < 1e-6
+
+                # Check if the two lines are crossing using jnp.det
+                det_v1_a1 = jnp.linalg.det(jnp.stack([v1, a1], axis=-1))
+                det_v1_a2 = jnp.linalg.det(jnp.stack([v1, a2], axis=-1))
+                crossing = jnp.sign(det_v1_a1) != jnp.sign(det_v1_a2)
+
+                return colinear & crossing
+
+            obs = self.obstacle_coords
+            obs_end = obs + self.obstacle_deltas
+            inters = jnp.any(inter_fn(pos, new_pos, obs, obs_end))
+            new_pos = jnp.where(inters, pos, new_pos)
 
             #######################################################################
             #######################################################################

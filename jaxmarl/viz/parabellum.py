@@ -51,7 +51,7 @@ class ParabellumVisualizer(SMAXVisualizer):
         for idx, (_, v) in enumerate(action.items()):
             symb = action_to_symbol.get(v.astype(int).item(), "Ø")
             font = pygame.font.SysFont("Fira Code", jnp.sqrt(self.s).astype(int).item())
-            text = font.render(symb, True, self.fg, pygame.SRCALPHA)
+            text = font.render(symb, True, self.fg)
             # text = font.render(symb, True, self.fg)
             coord = (
                 self.s / 2
@@ -97,8 +97,8 @@ class ParabellumVisualizer(SMAXVisualizer):
             frames.append(pygame.surfarray.pixels3d(screen).swapaxes(0, 1))
 
         # save the images
-        clip = ImageSequenceClip(frames, fps=48)
-        clip.write_videofile(save_fname, fps=48)
+        clip = ImageSequenceClip(frames, fps=60)
+        clip.write_videofile(save_fname, fps=60)
         # clip.write_gif(save_fname.replace(".mp4", ".gif"), fps=24)
         pygame.quit()
 
@@ -117,11 +117,11 @@ if __name__ == "__main__":
         key_act = random.split(key, len(env.agents))
         actions = {
             agent: jax.random.randint(key_act[i], (), 0, 5)
-            # env.action_space(agent).sample(key_act[i])
             for i, agent in enumerate(env.agents)
         }
         state_seq.append((key, state, actions))
-        obs, state, reward, done, info = env.step(key, state, actions)
+        rng, key_step = random.split(rng)
+        obs, state, reward, done, infos = env.step(key_step, state, actions)
 
     vis = ParabellumVisualizer(env, state_seq)
     vis.animate()

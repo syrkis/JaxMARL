@@ -338,7 +338,6 @@ class SMAX(MultiAgentEnv):
         get_state_sequence: bool = False,
     ) -> Tuple[Dict[str, chex.Array], State, Dict[str, float], Dict[str, bool], Dict]:
         """Environment-specific step transition."""
-
         health_before = jnp.copy(state.unit_health)
 
         def world_step_fn(carry, _):

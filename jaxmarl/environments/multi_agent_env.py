@@ -1,4 +1,4 @@
-""" 
+"""
 Abstract base class for multi agent gym environments with JAX
 Based on the Gymnax and PettingZoo APIs
 
