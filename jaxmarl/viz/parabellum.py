@@ -25,6 +25,9 @@ class ParabellumVisualizer(SMAXVisualizer):
         self.fg = (235, 235, 235) if darkdetect.isDark() else (20, 20, 20)
         self.s = 1000
         self.scale = self.s / self.env.map_width
+        self.action_seq = [  # seems there's an error in SMAX expand (this gets around that)
+            action for _, _, action in state_seq
+        ]
 
     def render_agents(self, screen, state):
         time_tuple = zip(state.unit_positions, state.unit_teams, state.unit_types)
@@ -44,20 +47,21 @@ class ParabellumVisualizer(SMAXVisualizer):
             attack_range = self.env.unit_type_attack_ranges[kind] * self.scale
             pygame.draw.circle(screen, self.fg, pos, attack_range.astype(int), 2)
 
-    def render_action(self, screen, actions):
-        for idx, (_, v) in enumerate(actions.items()):
+    def render_action(self, screen, action):
+        for idx, (_, v) in enumerate(action.items()):
             symb = action_to_symbol.get(v.astype(int).item(), "Ø")
             font = pygame.font.SysFont("Fira Code", jnp.sqrt(self.s).astype(int).item())
-            text = font.render(symb, True, self.fg)
+            text = font.render(symb, True, self.fg, pygame.SRCALPHA)
+            # text = font.render(symb, True, self.fg)
             coord = (
                 self.s / 2
-                + ((idx - len(actions) / 2) * self.env.map_width / 2)
+                + ((idx - len(action) / 2) * self.env.map_width / 2)
                 + self.scale,
                 (self.s / 20),
             )
             screen.blit(text, coord)
 
-    def render_obstacles(self, screen, state):
+    def render_obstacles(self, screen):
         for c, d in zip(self.env.obstacle_coords, self.env.obstacle_deltas):
             d = tuple(((c + d) * self.scale).tolist())
             c = tuple((c * self.scale).tolist())
@@ -68,13 +72,17 @@ class ParabellumVisualizer(SMAXVisualizer):
             self.expand_state_seq()
         frames = []  # frames for the video
         pygame.init()  # initialize pygame
-        for _, state, action in self.state_seq:  # for every time step
-            screen = pygame.Surface((self.s, self.s))  # clear the screen
+        for idx, (_, state, _) in enumerate(self.state_seq):  # for every time step
+            screen = pygame.Surface(
+                (self.s, self.s), pygame.HWSURFACE | pygame.DOUBLEBUF
+            )
+            action = self.action_seq[idx // 8]
+            # screen = pygame.Surface((self.s, self.s))  # clear the screen
             screen.fill(self.bg)  # fill the screen with the background color
 
             self.render_agents(screen, state)  # render the agents
             self.render_action(screen, action)  # render the actions
-            self.render_obstacles(screen, state)  # render the obstacles
+            self.render_obstacles(screen)  # render the obstacles
 
             # draw bullets
             # for bullet in state.bullets:
@@ -86,7 +94,7 @@ class ParabellumVisualizer(SMAXVisualizer):
             pygame.draw.rect(screen, self.fg, rect, 2)
 
             # rotate the screen and append to frames
-            frames.append(pygame.surfarray.array3d(screen).swapaxes(0, 1))
+            frames.append(pygame.surfarray.pixels3d(screen).swapaxes(0, 1))
 
         # save the images
         clip = ImageSequenceClip(frames, fps=48)
@@ -107,11 +115,13 @@ if __name__ == "__main__":
     for step in range(100):
         rng, key = random.split(rng)
         key_act = random.split(key, len(env.agents))
-        action = {
-            agent: env.action_space(agent).sample(key_act[i])
+        actions = {
+            agent: jax.random.randint(key_act[i], (), 0, 5)
+            # env.action_space(agent).sample(key_act[i])
             for i, agent in enumerate(env.agents)
         }
-        state_seq.append((key, state, action))
-        obs, state, reward, done, info = env.step(key, state, action)
+        state_seq.append((key, state, actions))
+        obs, state, reward, done, info = env.step(key, state, actions)
+
     vis = ParabellumVisualizer(env, state_seq)
     vis.animate()

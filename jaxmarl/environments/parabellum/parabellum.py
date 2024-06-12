@@ -49,11 +49,10 @@ class Parabellum(SMAX):
         self.obstacle_coords = scenario.obstacle_coords
         self.obstacle_deltas = scenario.obstacle_deltas
         # overwrite supers _world_step method
-        self._world_step = self._world_step
 
     @partial(jax.jit, static_argnums=(0,))
     # replace the _world_step method
-    def _world_step(  # modified version of JaxMARL's SMAX _word_step
+    def _world_step(  # modified version of JaxMARL's SMAX _world_step
         self,
         key: chex.PRNGKey,
         state: State,
@@ -100,7 +99,6 @@ class Parabellum(SMAX):
                 u = jnp.linalg.det(jnp.stack([a2 - a1, b1 - a1])) / denom
                 return jnp.where(denom == 0, 0, (0 < t) & (t < 1) & (0 < u) & (u < 1))
 
-            print("confirming no errors")
             pos = pos  # a1  (x, y)
             new_pos = new_pos  # a2  (x, y)
             obstacle_start = self.obstacle_coords  # b1 (x, y)
