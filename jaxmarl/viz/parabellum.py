@@ -36,8 +36,9 @@ class ParabellumVisualizer(SMAXVisualizer):
             pos = tuple((pos * self.scale).tolist())
 
             # draw the agent
-            pygame.draw.circle(screen, face_col, pos, 7)
-            pygame.draw.circle(screen, self.fg, pos, 7, 2)
+            radius = self.env.unit_type_radiuses[kind] * self.scale * 2
+            pygame.draw.circle(screen, face_col, pos, radius.astype(int))
+            pygame.draw.circle(screen, self.fg, pos, radius.astype(int), 1)
 
             # draw the sight range
             # sight_range = self.env.unit_type_sight_ranges[kind] * self.scale
@@ -48,17 +49,25 @@ class ParabellumVisualizer(SMAXVisualizer):
             pygame.draw.circle(screen, self.fg, pos, attack_range.astype(int), 2)
 
     def render_action(self, screen, action):
-        for idx, (_, v) in enumerate(action.items()):
-            symb = action_to_symbol.get(v.astype(int).item(), "Ø")
+        def coord_fn(idx, n, team):
+            return (
+                self.s / 20 if team == 0 else self.s - self.s / 20,
+                # vertically centered so that n / 2 is above and below the center
+                self.s / 2 - (n / 2) * self.s / 20 + idx * self.s / 20,
+            )
+
+        for idx in range(self.env.num_allies):
+            symb = action_to_symbol.get(action[f"ally_{idx}"].astype(int).item(), "Ø")
             font = pygame.font.SysFont("Fira Code", jnp.sqrt(self.s).astype(int).item())
             text = font.render(symb, True, self.fg)
-            # text = font.render(symb, True, self.fg)
-            coord = (
-                self.s / 2
-                + ((idx - len(action) / 2) * self.env.map_width / 2)
-                + self.scale,
-                (self.s / 20),
-            )
+            coord = coord_fn(idx, self.env.num_allies, 0)
+            screen.blit(text, coord)
+
+        for idx in range(self.env.num_enemies):
+            symb = action_to_symbol.get(action[f"enemy_{idx}"].astype(int).item(), "Ø")
+            font = pygame.font.SysFont("Fira Code", jnp.sqrt(self.s).astype(int).item())
+            text = font.render(symb, True, self.fg)
+            coord = coord_fn(idx, self.env.num_enemies, 1)
             screen.blit(text, coord)
 
     def render_obstacles(self, screen):
@@ -108,7 +117,7 @@ if __name__ == "__main__":
     from jaxmarl import make
     from jax import random, numpy as jnp
 
-    env = make("parabellum", map_width=128, map_height=128)
+    env = make("parabellum", map_width=256, map_height=256)
     rng, key = random.split(random.PRNGKey(0))
     obs, state = env.reset(key)
     state_seq = []
@@ -116,7 +125,7 @@ if __name__ == "__main__":
         rng, key = random.split(rng)
         key_act = random.split(key, len(env.agents))
         actions = {
-            agent: jax.random.randint(key_act[i], (), 0, 5)
+            agent: jnp.array(1)  # jax.random.randint(key_act[i], (), 0, 5)
             for i, agent in enumerate(env.agents)
         }
         state_seq.append((key, state, actions))

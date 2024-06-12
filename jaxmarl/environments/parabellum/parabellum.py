@@ -18,10 +18,10 @@ class Scenario:
 
     obstacle_coords: chex.Array
     obstacle_deltas: chex.Array
-    unit_types: chex.Array
 
-    num_allies: int = 5
-    num_enemies: int = 5
+    unit_types: chex.Array
+    num_allies: int = 10
+    num_enemies: int = 10
 
     smacv2_position_generation: bool = False
     smacv2_unit_type_generation: bool = False
@@ -30,9 +30,9 @@ class Scenario:
 # default scenario
 scenarios = {
     "default": Scenario(
-        jnp.array([[8, 10], [24, 10], [16, 12]]) * 4,
-        jnp.array([[0, 12], [0, 12], [0, 8]]) * 4,
-        jnp.zeros((10,), dtype=jnp.uint8),
+        jnp.array([[8, 10], [24, 10], [16, 12]]) * 8,
+        jnp.array([[0, 12], [0, 12], [0, 8]]) * 8,
+        jnp.zeros((20,), dtype=jnp.uint8),
     )
 }
 
@@ -92,19 +92,16 @@ class Parabellum(SMAX):
 
             @partial(jax.vmap, in_axes=(None, None, 0, 0))
             def inter_fn(pos, new_pos, obs, obs_end):
-                return pos[0] < self.map_width / 2
-                v1, v2 = new_pos - pos, obs_end - obs
-                a1, a2 = obs - pos, obs_end - pos
-
-                # Check if the two lines are colinear using jnp.cross
-                colinear = jnp.abs(jnp.cross(v1, v2)) < 1e-6
-
-                # Check if the two lines are crossing using jnp.det
-                det_v1_a1 = jnp.linalg.det(jnp.stack([v1, a1], axis=-1))
-                det_v1_a2 = jnp.linalg.det(jnp.stack([v1, a2], axis=-1))
-                crossing = jnp.sign(det_v1_a1) != jnp.sign(det_v1_a2)
-
-                return colinear & crossing
+                # use jnp.dot, jnp.cross, jnp.linalg.det
+                # to determine if the line from pos to new_pos
+                # intersects with the line from obs to obs_end
+                # (a1, a2) and (b1, b2) are the endpoints of the lines
+                # (a1, a2) and (b1, b2) are the endpoints of the lines
+                d1 = jnp.cross(obs - pos, new_pos - pos)
+                d2 = jnp.cross(obs_end - pos, new_pos - pos)
+                d3 = jnp.cross(pos - obs, obs_end - obs)
+                d4 = jnp.cross(new_pos - obs, obs_end - obs)
+                return (d1 * d2 < 0) & (d3 * d4 < 0)
 
             obs = self.obstacle_coords
             obs_end = obs + self.obstacle_deltas
