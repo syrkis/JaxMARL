@@ -30,8 +30,8 @@ class Scenario:
 # default scenario
 scenarios = {
     "default": Scenario(
-        jnp.array([[0, 0], [1, 1], [2, 2]]),
-        jnp.array([[0, 1], [1, 1], [1, 0]]),
+        jnp.array([[16, 16], [16, 17], [16, 15]]),
+        jnp.array([[0, 3], [3, 0], [3, 0]]),
         jnp.zeros((10,), dtype=jnp.uint8),
     )
 }
@@ -50,6 +50,7 @@ class Parabellum(SMAX):
         self.obstacle_deltas = scenario.obstacle_deltas
 
     @partial(jax.jit, static_argnums=(0,))
+    # replace the _world_step method
     def _world_step(  # modified version of JaxMARL's SMAX _word_step
         self,
         key: chex.PRNGKey,
@@ -249,7 +250,7 @@ class Parabellum(SMAX):
 
 
 if __name__ == "__main__":
-    scenario = ScenarioParabellum(
+    scenario = Scenario(
         jnp.array([[0, 0], [1, 1], [2, 2]]),
         jnp.array([0, 1, 2]),
         jnp.array([0, 1, 2]),
