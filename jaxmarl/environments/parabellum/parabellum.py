@@ -30,8 +30,8 @@ class Scenario:
 # default scenario
 scenarios = {
     "default": Scenario(
-        jnp.array([[16, 16], [16, 17], [16, 15]]),
-        jnp.array([[0, 3], [3, 0], [3, 0]]),
+        jnp.array([[8, 10], [24, 10], [16, 12]]) * 4,
+        jnp.array([[0, 12], [0, 12], [0, 8]]) * 4,
         jnp.zeros((10,), dtype=jnp.uint8),
     )
 }
@@ -48,6 +48,8 @@ class Parabellum(SMAX):
         self.unit_type_attack_blasts = unit_type_attack_blasts
         self.obstacle_coords = scenario.obstacle_coords
         self.obstacle_deltas = scenario.obstacle_deltas
+        # overwrite supers _world_step method
+        self._world_step = self._world_step
 
     @partial(jax.jit, static_argnums=(0,))
     # replace the _world_step method
@@ -90,23 +92,22 @@ class Parabellum(SMAX):
             # |               |
             # —————————————————
 
-            def lines_intersect(a1, a2, b1, b2):  # TODO: double check this is correct
+            @partial(jax.vmap, in_axes=(None, None, 0, 0))
+            def inter_fn(a1, a2, b1, b2):  # TODO: double check this is correct
                 # if line from a1 to a2 intersects with b1 to b2
-                denominator = jnp.cross(a2 - a1, b2 - b1)
-                t = jnp.cross(b1 - a1, b2 - b1) / denominator
-                u = jnp.cross(a2 - a1, b1 - a1) / denominator
-                return (0 <= t) & (t <= 1) & (0 <= u) & (u <= 1)
+                denom = jnp.linalg.det(jnp.stack([a2 - a1, b2 - b1]))
+                t = jnp.linalg.det(jnp.stack([b1 - a1, b2 - b1])) / denom
+                u = jnp.linalg.det(jnp.stack([a2 - a1, b1 - a1])) / denom
+                return jnp.where(denom == 0, 0, (0 < t) & (t < 1) & (0 < u) & (u < 1))
 
+            print("confirming no errors")
             pos = pos  # a1  (x, y)
             new_pos = new_pos  # a2  (x, y)
             obstacle_start = self.obstacle_coords  # b1 (x, y)
             obstacle_end = obstacle_start + self.obstacle_deltas  # b2  (x, y)
             # if obstacle_start and obstacle_end are empty make them into jnp.array([[-1,-1]])
-            new_pos = jax.lax.cond(
-                jnp.any(lines_intersect(pos, new_pos, obstacle_start, obstacle_end)),
-                lambda: pos,
-                lambda: new_pos,
-            )
+            inters = jnp.any(inter_fn(pos, new_pos, obstacle_start, obstacle_end))
+            new_pos = jax.lax.cond(inters, lambda: pos, lambda: new_pos)
 
             #######################################################################
             #######################################################################
