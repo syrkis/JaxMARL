@@ -20,7 +20,7 @@ class Scenario:
     obstacle_deltas: chex.Array
 
     unit_types: chex.Array
-    num_allies: int = 10
+    num_allies: int = 9
     num_enemies: int = 10
 
     smacv2_position_generation: bool = False
@@ -30,9 +30,9 @@ class Scenario:
 # default scenario
 scenarios = {
     "default": Scenario(
-        jnp.array([[8, 10], [24, 10], [16, 12]]) * 8,
-        jnp.array([[0, 12], [0, 12], [0, 8]]) * 8,
-        jnp.zeros((20,), dtype=jnp.uint8),
+        jnp.array([[6, 10], [26, 10]]) * 8,
+        jnp.array([[0, 12], [0, 1]]) * 8,
+        jnp.zeros((19,), dtype=jnp.uint8),
     )
 }
 
@@ -41,13 +41,14 @@ class Parabellum(SMAX):
     def __init__(
         self,
         scenario: Scenario = scenarios["default"],
-        unit_type_attack_blasts=jnp.array([0, 0, 0, 0, 0, 0]),
+        unit_type_attack_blasts=jnp.array([0, 0, 0, 0, 0, 0]) + 8,
         **kwargs,
     ):
         super().__init__(scenario=scenario, **kwargs)
         self.unit_type_attack_blasts = unit_type_attack_blasts
         self.obstacle_coords = scenario.obstacle_coords.astype(jnp.float32)
         self.obstacle_deltas = scenario.obstacle_deltas.astype(jnp.float32)
+        self.max_steps = 200
         # overwrite supers _world_step method
 
     @partial(jax.jit, static_argnums=(0,))  # replace the _world_step method
@@ -76,27 +77,11 @@ class Parabellum(SMAX):
                 jnp.zeros((2,)),
             )
 
-            # avoid going into obstacles
             #######################################################################
-            #######################################################################
-
-            # if trajectory from  pos to new_pos crosses an obstacle line (have length one)
-            # new_pos = pos, else new_pos = new_pos
-            # —————————————————
-            # |               |
-            # |       a1      |
-            # |      b1—b2    |
-            # |       a2      |
-            # |               |
-            # —————————————————
+            ############################################ avoid going into obstacles
 
             @partial(jax.vmap, in_axes=(None, None, 0, 0))
             def inter_fn(pos, new_pos, obs, obs_end):
-                # use jnp.dot, jnp.cross, jnp.linalg.det
-                # to determine if the line from pos to new_pos
-                # intersects with the line from obs to obs_end
-                # (a1, a2) and (b1, b2) are the endpoints of the lines
-                # (a1, a2) and (b1, b2) are the endpoints of the lines
                 d1 = jnp.cross(obs - pos, new_pos - pos)
                 d2 = jnp.cross(obs_end - pos, new_pos - pos)
                 d3 = jnp.cross(pos - obs, obs_end - obs)
@@ -114,15 +99,10 @@ class Parabellum(SMAX):
             return new_pos
 
         #######################################################################
-        #######################################################################
-        #######################################################################
+        ######################################### units close enough to get hit
 
         def bystander_fn(attacked_idx):
-            idxs = (
-                jnp.zeros((self.num_agents,))
-                .at[: self.num_allies]
-                .set(attacked_idx > self.num_allies)
-            )
+            idxs = jnp.zeros((self.num_agents,))
             idxs *= (
                 jnp.linalg.norm(
                     state.unit_positions - state.unit_positions[attacked_idx], axis=-1
@@ -131,7 +111,6 @@ class Parabellum(SMAX):
             )
             return idxs
 
-            #######################################################################
             #######################################################################
             #######################################################################
 
@@ -148,10 +127,6 @@ class Parabellum(SMAX):
             attacked_idx = jax.lax.select(
                 action < self.num_movement_actions, idx, attacked_idx
             )
-
-            #########################################################
-            bystanders = bystander_fn(attacked_idx)  # TODO: use
-            #########################################################
 
             attack_valid = (
                 (
@@ -174,15 +149,17 @@ class Parabellum(SMAX):
             # See https://github.com/deepmind/pysc2/blob/master/docs/environment.md#determinism-and-randomness
 
             #########################################################
-            #########################################################
+            ############################### Add bystander health diff
 
-            bystander_valid = jnp.where(
-                attack_valid, bystanders, jnp.zeros((self.num_agents,))
+            bystander_idxs = bystander_fn(attacked_idx)  # TODO: use
+            bystander_valid = (
+                jnp.where(attack_valid, bystander_idxs, jnp.zeros((self.num_agents,)))
+                .astype(jnp.bool_)
+                .astype(jnp.float32)
             )
             bystander_health_diff = (
                 bystander_valid * -self.unit_type_attacks[state.unit_types[idx]]
             )
-            health_diff = health_diff  # (health_diff + bystander_health_diff).squeeze()
 
             #########################################################
             #########################################################
@@ -202,19 +179,24 @@ class Parabellum(SMAX):
                 cooldown - state.unit_weapon_cooldowns[idx],
                 -self.time_per_step,
             )
-            return health_diff, attacked_idx, cooldown_diff
+            return (
+                health_diff,
+                attacked_idx,
+                cooldown_diff,
+                (bystander_health_diff, bystander_idxs),
+            )
 
         def perform_agent_action(idx, action, key):
             movement_action, attack_action = action
             new_pos = update_position(idx, movement_action)
-            health_diff, attacked_idxes, cooldown_diff = update_agent_health(
-                idx, attack_action, key
+            health_diff, attacked_idxes, cooldown_diff, (bystander) = (
+                update_agent_health(idx, attack_action, key)
             )
 
-            return new_pos, (health_diff, attacked_idxes), cooldown_diff
+            return new_pos, (health_diff, attacked_idxes), cooldown_diff, bystander
 
         keys = jax.random.split(key, num=self.num_agents)
-        pos, (health_diff, attacked_idxes), cooldown_diff = jax.vmap(
+        pos, (health_diff, attacked_idxes), cooldown_diff, bystander = jax.vmap(
             perform_agent_action
         )(jnp.arange(self.num_agents), actions, keys)
         # Multiple enemies can attack the same unit.
@@ -240,6 +222,16 @@ class Parabellum(SMAX):
             ),
             0.0,
         )
+
+        #########################################################
+        ############################ subtracting bystander health
+
+        _, bystander_health_diff = bystander
+        unit_health -= bystander_health_diff.sum(axis=0)  # might be axis=1
+
+        #########################################################
+        #########################################################
+
         unit_weapon_cooldowns = state.unit_weapon_cooldowns + cooldown_diff
         state = state.replace(
             unit_health=unit_health,
@@ -250,9 +242,16 @@ class Parabellum(SMAX):
 
 
 if __name__ == "__main__":
-    scenario = Scenario(
-        jnp.array([[0, 0], [1, 1], [2, 2]]),
-        jnp.array([0, 1, 2]),
-        jnp.array([0, 1, 2]),
-    )
-    env = Parabellum(scenario)
+    env = Parabellum(map_width=256, map_height=256)
+    rng, key = random.split(random.PRNGKey(0))
+    obs, state = env.reset(key)
+    state_seq = []
+    for step in range(100):
+        rng, key = random.split(rng)
+        key_act = random.split(key, len(env.agents))
+        actions = {
+            agent: jax.random.randint(key_act[i], (), 0, 5)
+            for i, agent in enumerate(env.agents)
+        }
+        _, state, _, _, _ = env.step(key, state, actions)
+        state_seq.append((obs, state, actions))
